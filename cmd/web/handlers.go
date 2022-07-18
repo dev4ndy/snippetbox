@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 	"strconv"
 	"text/template"
 )
@@ -15,19 +14,19 @@ func home(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	path, err := os.Getwd()
-	if err != nil {
-		log.Println(err)
+	files := []string{
+		"../../ui/html/main.tmpl",
+		"../../ui/html/partials/nav.tmpl",
+		"../../ui/html/pages/home.tmpl",
 	}
-	fmt.Println(path)
 
-	ts, err := template.ParseFiles("../../ui/html/pages/home.tmpl")
+	ts, err := template.ParseFiles(files...)
 	if err != nil {
 		log.Println(err.Error())
 		http.Error(w, "Internal Server Error", 500)
 	}
 
-	err = ts.Execute(w, nil)
+	err = ts.ExecuteTemplate(w, "base", nil)
 	if err != nil {
 		log.Println(err.Error())
 		http.Error(w, "internal Server Error", 500)
