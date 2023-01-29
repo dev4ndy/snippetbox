@@ -3,11 +3,13 @@ package main
 import (
 	"log"
 	"net/http"
+	"os"
 )
 
 func main() {
 	mux := http.NewServeMux()
-	mux.Handle("/static/", http.StripPrefix("/static", http.FileServer(http.Dir("../../ui/static/"))))
+	nfs := neuteredFileSystem{http.Dir("../../ui/static/")}
+	mux.Handle("/static/", http.StripPrefix("/static", http.FileServer(nfs)))
 
 	mux.HandleFunc("/", home)
 	mux.HandleFunc("/snippet/view", snippetView)
@@ -16,4 +18,26 @@ func main() {
 	log.Println("Starting Server on : 8080")
 	err := http.ListenAndServe(":8080", mux)
 	log.Fatal(err)
+}
+
+type neuteredFileSystem struct {
+	fs http.FileSystem
+}
+
+func (nfs neuteredFileSystem) Open(path string) (http.File, error) {
+	f, err := nfs.fs.Open(path)
+	if err != nil {
+		return nil, err
+	}
+
+	s, err := f.Stat()
+	if err != nil {
+		return nil, err
+	}
+
+	if s.IsDir() {
+		return nil, os.ErrNotExist
+	}
+
+	return f, nil
 }
