@@ -2,16 +2,17 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"strconv"
 	"text/template"
 )
 
-type Home struct{}
+type Home struct {
+	appLogger *ApplicationLogger
+}
 
-func NewHome() *Home {
-	return &Home{}
+func NewHome(appLogger *ApplicationLogger) *Home {
+	return &Home{appLogger}
 }
 
 func (h *Home) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
@@ -19,10 +20,10 @@ func (h *Home) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 		http.NotFound(rw, r)
 		return
 	}
-	homeView(rw, r)
+	h.View(rw, r)
 }
 
-func homeView(w http.ResponseWriter, r *http.Request) {
+func (h *Home) View(w http.ResponseWriter, r *http.Request) {
 	files := []string{
 		"../../ui/html/main.tmpl",
 		"../../ui/html/partials/nav.tmpl",
@@ -31,20 +32,42 @@ func homeView(w http.ResponseWriter, r *http.Request) {
 
 	ts, err := template.ParseFiles(files...)
 	if err != nil {
-		log.Println(err.Error())
+		h.appLogger.errorLog.Println(err.Error())
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 	}
 
 	err = ts.ExecuteTemplate(w, "base", nil)
 	if err != nil {
-		log.Println(err.Error())
+		h.appLogger.errorLog.Println(err.Error())
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 	}
 
 	w.Write([]byte("Hello World!"))
 }
 
-func snippetView(w http.ResponseWriter, r *http.Request) {
+type Snippet struct {
+	appLogger *ApplicationLogger
+}
+
+func NewSnippet(appLogger *ApplicationLogger) *Snippet {
+	return &Snippet{appLogger}
+}
+
+func (s *Snippet) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodGet {
+		s.View(rw, r)
+		return
+	}
+	if r.Method == http.MethodPost {
+		s.Create(rw, r)
+		return
+	}
+	rw.Header().Set("Allow", http.MethodPost)
+	rw.Header().Set("Allow", http.MethodGet)
+	http.Error(rw, "Method Not Allowed", http.StatusMethodNotAllowed)
+}
+
+func (s *Snippet) View(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.Atoi(r.URL.Query().Get("id"))
 	if err != nil || id < 1 {
 		http.NotFound(w, r)
@@ -53,11 +76,6 @@ func snippetView(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Display a specific snippet with ID %d...", id)
 }
 
-func snippetCreate(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" {
-		w.Header().Set("Allow", http.MethodPost)
-		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
-		return
-	}
+func (s *Snippet) Create(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("Create a new snippet"))
 }

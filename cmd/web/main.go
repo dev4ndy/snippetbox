@@ -7,14 +7,19 @@ import (
 	"os"
 )
 
-type config struct {
+type Config struct {
 	addr      string
 	staticDir string
 }
 
+type ApplicationLogger struct {
+	errorLog *log.Logger
+	infoLog  *log.Logger
+}
+
 func main() {
 
-	var cfg config
+	var cfg Config
 
 	// command-line flags
 	// To change the Http network default address, use: `go run main.go -addr=":80"`
@@ -27,29 +32,31 @@ func main() {
 	// Logging
 	// To redirect the stdout and stderr to a file on-disk:
 	// `go run main.go >>/tmp/info.log 2>>/tmp/error.log`
-	infoLog := log.New(os.Stdout, "INFO\t", log.Ldate|log.Ltime)
-	errorLog := log.New(os.Stderr, "Error\t", log.Ldate|log.Ltime|log.Llongfile)
+	appLogger := ApplicationLogger{
+		infoLog:  log.New(os.Stdout, "INFO\t", log.Ldate|log.Ltime),
+		errorLog: log.New(os.Stderr, "ERROR\t", log.Ldate|log.Ltime|log.Llongfile),
+	}
 
 	nfs := neuteredFileSystem{http.Dir(cfg.staticDir)}
 
 	mux := http.NewServeMux()
 	mux.Handle("/static/", http.StripPrefix("/static", http.FileServer(nfs)))
 
-	home := NewHome()
+	home := NewHome(&appLogger)
+	snippet := NewSnippet(&appLogger)
 
 	mux.Handle("/", home)
-	mux.HandleFunc("/snippet/view", snippetView)
-	mux.HandleFunc("/snippet/create", snippetCreate)
+	mux.Handle("/snippet", snippet)
 
 	server := http.Server{
 		Addr:     cfg.addr,
-		ErrorLog: errorLog,
+		ErrorLog: appLogger.errorLog,
 		Handler:  mux,
 	}
 
-	infoLog.Printf("Starting Server on %s", cfg.addr)
+	appLogger.infoLog.Printf("Starting Server on %s", cfg.addr)
 	err := server.ListenAndServe()
-	errorLog.Fatal(err)
+	appLogger.errorLog.Fatal(err)
 }
 
 type neuteredFileSystem struct {
