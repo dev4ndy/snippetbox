@@ -24,18 +24,32 @@ func main() {
 	// otherwise it will take the default value
 	flag.Parse()
 
-	mux := http.NewServeMux()
+	// Logging
+	// To redirect the stdout and stderr to a file on-disk:
+	// `go run main.go >>/tmp/info.log 2>>/tmp/error.log`
+	infoLog := log.New(os.Stdout, "INFO\t", log.Ldate|log.Ltime)
+	errorLog := log.New(os.Stderr, "Error\t", log.Ldate|log.Ltime|log.Llongfile)
+
 	nfs := neuteredFileSystem{http.Dir(cfg.staticDir)}
+
+	mux := http.NewServeMux()
 	mux.Handle("/static/", http.StripPrefix("/static", http.FileServer(nfs)))
+
 	home := NewHome()
 
 	mux.Handle("/", home)
 	mux.HandleFunc("/snippet/view", snippetView)
 	mux.HandleFunc("/snippet/create", snippetCreate)
 
-	log.Printf("Starting Server on %s", cfg.addr)
-	err := http.ListenAndServe(cfg.addr, mux)
-	log.Fatal(err)
+	server := http.Server{
+		Addr:     cfg.addr,
+		ErrorLog: errorLog,
+		Handler:  mux,
+	}
+
+	infoLog.Printf("Starting Server on %s", cfg.addr)
+	err := server.ListenAndServe()
+	errorLog.Fatal(err)
 }
 
 type neuteredFileSystem struct {
