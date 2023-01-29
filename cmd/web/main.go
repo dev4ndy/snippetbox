@@ -7,16 +7,6 @@ import (
 	"os"
 )
 
-type Config struct {
-	addr      string
-	staticDir string
-}
-
-type ApplicationLogger struct {
-	errorLog *log.Logger
-	infoLog  *log.Logger
-}
-
 func main() {
 
 	var cfg Config
@@ -32,31 +22,31 @@ func main() {
 	// Logging
 	// To redirect the stdout and stderr to a file on-disk:
 	// `go run main.go >>/tmp/info.log 2>>/tmp/error.log`
-	appLogger := ApplicationLogger{
-		infoLog:  log.New(os.Stdout, "INFO\t", log.Ldate|log.Ltime),
-		errorLog: log.New(os.Stderr, "ERROR\t", log.Ldate|log.Ltime|log.Llongfile),
-	}
+	app := NewApplication(
+		log.New(os.Stdout, "INFO\t", log.Ldate|log.Ltime),
+		log.New(os.Stderr, "ERROR\t", log.Ldate|log.Ltime|log.Llongfile),
+	)
 
 	nfs := neuteredFileSystem{http.Dir(cfg.staticDir)}
 
 	mux := http.NewServeMux()
 	mux.Handle("/static/", http.StripPrefix("/static", http.FileServer(nfs)))
 
-	home := NewHome(&appLogger)
-	snippet := NewSnippet(&appLogger)
+	home := NewHome(app)
+	snippet := NewSnippet(app)
 
 	mux.Handle("/", home)
 	mux.Handle("/snippet", snippet)
 
 	server := http.Server{
 		Addr:     cfg.addr,
-		ErrorLog: appLogger.errorLog,
+		ErrorLog: app.errorLog,
 		Handler:  mux,
 	}
 
-	appLogger.infoLog.Printf("Starting Server on %s", cfg.addr)
+	app.infoLog.Printf("Starting Server on %s", cfg.addr)
 	err := server.ListenAndServe()
-	appLogger.errorLog.Fatal(err)
+	app.errorLog.Fatal(err)
 }
 
 type neuteredFileSystem struct {

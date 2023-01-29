@@ -8,11 +8,11 @@ import (
 )
 
 type Home struct {
-	appLogger *ApplicationLogger
+	app *Application
 }
 
-func NewHome(appLogger *ApplicationLogger) *Home {
-	return &Home{appLogger}
+func NewHome(app *Application) *Home {
+	return &Home{app}
 }
 
 func (h *Home) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
@@ -23,7 +23,7 @@ func (h *Home) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 	h.View(rw, r)
 }
 
-func (h *Home) View(w http.ResponseWriter, r *http.Request) {
+func (h *Home) View(rw http.ResponseWriter, r *http.Request) {
 	files := []string{
 		"../../ui/html/main.tmpl",
 		"../../ui/html/partials/nav.tmpl",
@@ -32,25 +32,21 @@ func (h *Home) View(w http.ResponseWriter, r *http.Request) {
 
 	ts, err := template.ParseFiles(files...)
 	if err != nil {
-		h.appLogger.errorLog.Println(err.Error())
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		h.app.ServerError(rw, err)
 	}
 
-	err = ts.ExecuteTemplate(w, "base", nil)
+	err = ts.ExecuteTemplate(rw, "base", nil)
 	if err != nil {
-		h.appLogger.errorLog.Println(err.Error())
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		h.app.ServerError(rw, err)
 	}
-
-	w.Write([]byte("Hello World!"))
 }
 
 type Snippet struct {
-	appLogger *ApplicationLogger
+	app *Application
 }
 
-func NewSnippet(appLogger *ApplicationLogger) *Snippet {
-	return &Snippet{appLogger}
+func NewSnippet(app *Application) *Snippet {
+	return &Snippet{app}
 }
 
 func (s *Snippet) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
@@ -64,16 +60,16 @@ func (s *Snippet) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 	}
 	rw.Header().Set("Allow", http.MethodPost)
 	rw.Header().Set("Allow", http.MethodGet)
-	http.Error(rw, "Method Not Allowed", http.StatusMethodNotAllowed)
+	s.app.ClientError(rw, http.StatusMethodNotAllowed)
 }
 
-func (s *Snippet) View(w http.ResponseWriter, r *http.Request) {
+func (s *Snippet) View(rw http.ResponseWriter, r *http.Request) {
 	id, err := strconv.Atoi(r.URL.Query().Get("id"))
 	if err != nil || id < 1 {
-		http.NotFound(w, r)
+		s.app.NotFound(rw)
 		return
 	}
-	fmt.Fprintf(w, "Display a specific snippet with ID %d...", id)
+	fmt.Fprintf(rw, "Display a specific snippet with ID %d...", id)
 }
 
 func (s *Snippet) Create(w http.ResponseWriter, r *http.Request) {
