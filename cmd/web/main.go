@@ -10,8 +10,9 @@ func main() {
 	mux := http.NewServeMux()
 	nfs := neuteredFileSystem{http.Dir("../../ui/static/")}
 	mux.Handle("/static/", http.StripPrefix("/static", http.FileServer(nfs)))
+	home := NewHome()
 
-	mux.HandleFunc("/", home)
+	mux.Handle("/", home)
 	mux.HandleFunc("/snippet/view", snippetView)
 	mux.HandleFunc("/snippet/create", snippetCreate)
 

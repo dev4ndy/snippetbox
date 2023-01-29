@@ -8,12 +8,21 @@ import (
 	"text/template"
 )
 
-func home(w http.ResponseWriter, r *http.Request) {
+type Home struct{}
+
+func NewHome() *Home {
+	return &Home{}
+}
+
+func (h *Home) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/" {
-		http.NotFound(w, r)
+		http.NotFound(rw, r)
 		return
 	}
+	homeView(rw, r)
+}
 
+func homeView(w http.ResponseWriter, r *http.Request) {
 	files := []string{
 		"../../ui/html/main.tmpl",
 		"../../ui/html/partials/nav.tmpl",
@@ -29,7 +38,7 @@ func home(w http.ResponseWriter, r *http.Request) {
 	err = ts.ExecuteTemplate(w, "base", nil)
 	if err != nil {
 		log.Println(err.Error())
-		http.Error(w, "internal Server Error", http.StatusInternalServerError)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 	}
 
 	w.Write([]byte("Hello World!"))
