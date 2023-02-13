@@ -25,48 +25,16 @@ func main() {
 	app := NewApplication(
 		log.New(os.Stdout, "INFO\t", log.Ldate|log.Ltime),
 		log.New(os.Stderr, "ERROR\t", log.Ldate|log.Ltime|log.Llongfile),
+		&cfg,
 	)
-
-	nfs := neuteredFileSystem{http.Dir(cfg.staticDir)}
-
-	mux := http.NewServeMux()
-	mux.Handle("/static/", http.StripPrefix("/static", http.FileServer(nfs)))
-
-	home := NewHome(app)
-	snippet := NewSnippet(app)
-
-	mux.Handle("/", home)
-	mux.Handle("/snippet", snippet)
 
 	server := http.Server{
 		Addr:     cfg.addr,
 		ErrorLog: app.errorLog,
-		Handler:  mux,
+		Handler:  app.Routes(),
 	}
 
 	app.infoLog.Printf("Starting Server on %s", cfg.addr)
 	err := server.ListenAndServe()
 	app.errorLog.Fatal(err)
-}
-
-type neuteredFileSystem struct {
-	fs http.FileSystem
-}
-
-func (nfs neuteredFileSystem) Open(path string) (http.File, error) {
-	f, err := nfs.fs.Open(path)
-	if err != nil {
-		return nil, err
-	}
-
-	s, err := f.Stat()
-	if err != nil {
-		return nil, err
-	}
-
-	if s.IsDir() {
-		return nil, os.ErrNotExist
-	}
-
-	return f, nil
 }
