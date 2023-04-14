@@ -6,21 +6,25 @@ import (
 	"net/http"
 	"os"
 	"runtime/debug"
+
+	"github.com/dev4ndy/snippetbox/internal/models"
 )
 
 type Config struct {
 	addr      string
 	staticDir string
+	dsn       string
 }
 
 type Application struct {
 	errorLog *log.Logger
 	infoLog  *log.Logger
 	config   *Config
+	snippets *models.SnippetModel
 }
 
-func NewApplication(infoLog *log.Logger, errorLog *log.Logger, config *Config) *Application {
-	return &Application{infoLog: infoLog, errorLog: errorLog, config: config}
+func NewApplication(infoLog *log.Logger, errorLog *log.Logger, config *Config, snippets *models.SnippetModel) *Application {
+	return &Application{infoLog: infoLog, errorLog: errorLog, config: config, snippets: snippets}
 }
 
 func (app *Application) ServerError(rw http.ResponseWriter, err error) {
