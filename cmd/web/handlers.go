@@ -30,27 +30,12 @@ func (h *Home) View(rw http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		h.app.ServerError(rw, err)
-		return
 	}
 
-	for _, snippet := range snippets {
-		fmt.Fprintf(rw, "%+v\n", snippet)
-	}
-	// files := []string{
-	// 	"../../ui/html/main.tmpl",
-	// 	"../../ui/html/partials/nav.tmpl",
-	// 	"../../ui/html/pages/home.tmpl",
-	// }
+	data := h.app.NewTemplateData()
+	data.Snippets = snippets
 
-	// ts, err := template.ParseFiles(files...)
-	// if err != nil {
-	// 	h.app.ServerError(rw, err)
-	// }
-
-	// err = ts.ExecuteTemplate(rw, "base", nil)
-	// if err != nil {
-	// 	h.app.ServerError(rw, err)
-	// }
+	h.app.Render(rw, http.StatusOK, "home.html", data)
 }
 
 type Snippet struct {
@@ -92,7 +77,11 @@ func (s *Snippet) View(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Fprintf(rw, "%+v", snippet)
+	data := s.app.NewTemplateData()
+	data.Snippet = snippet
+
+	s.app.Render(rw, http.StatusOK, "view.html", data)
+
 }
 
 func (s *Snippet) Create(w http.ResponseWriter, r *http.Request) {

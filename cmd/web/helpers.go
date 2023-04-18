@@ -1,11 +1,14 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
+	"html/template"
 	"log"
 	"net/http"
 	"os"
 	"runtime/debug"
+	"time"
 
 	"github.com/dev4ndy/snippetbox/internal/models"
 )
@@ -17,14 +20,15 @@ type Config struct {
 }
 
 type Application struct {
-	errorLog *log.Logger
-	infoLog  *log.Logger
-	config   *Config
-	snippets *models.SnippetModel
+	infoLog       *log.Logger
+	errorLog      *log.Logger
+	config        *Config
+	snippets      *models.SnippetModel
+	templateCache map[string]*template.Template
 }
 
-func NewApplication(infoLog *log.Logger, errorLog *log.Logger, config *Config, snippets *models.SnippetModel) *Application {
-	return &Application{infoLog: infoLog, errorLog: errorLog, config: config, snippets: snippets}
+func NewApplication(infoLog *log.Logger, errorLog *log.Logger, config *Config, snippets *models.SnippetModel, templateCache map[string]*template.Template) *Application {
+	return &Application{infoLog: infoLog, errorLog: errorLog, config: config, snippets: snippets, templateCache: templateCache}
 }
 
 func (app *Application) ServerError(rw http.ResponseWriter, err error) {
@@ -55,6 +59,35 @@ func (app *Application) Routes() *http.ServeMux {
 	mux.Handle("/snippet", snippet)
 
 	return mux
+}
+
+func (app *Application) Render(rw http.ResponseWriter, status int, page string, data *templateData) {
+	ts, ok := app.templateCache[page]
+
+	if !ok {
+		err := fmt.Errorf("the template %s does not exist", page)
+		app.ServerError(rw, err)
+		return
+	}
+
+	buf := new(bytes.Buffer)
+
+	err := ts.ExecuteTemplate(buf, "base", data)
+
+	if err != nil {
+		app.ServerError(rw, err)
+		return
+	}
+
+	rw.WriteHeader(status)
+
+	buf.WriteTo(rw)
+}
+
+func (app *Application) NewTemplateData() *templateData {
+	return &templateData{
+		CurrentYear: time.Now().Year(),
+	}
 }
 
 type NeuteredFileSystem struct {

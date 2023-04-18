@@ -34,6 +34,12 @@ func main() {
 		errorLog.Fatal(err)
 	}
 
+	templateCache, err := NewTemplateCache()
+
+	if err != nil {
+		errorLog.Fatal(err)
+	}
+
 	// Logging
 	// To redirect the stdout and stderr to a file on-disk:
 	// `go run main.go >>/tmp/info.log 2>>/tmp/error.log`
@@ -42,6 +48,7 @@ func main() {
 		errorLog,
 		&cfg,
 		&models.SnippetModel{DB: db},
+		templateCache,
 	)
 
 	defer db.Close()
