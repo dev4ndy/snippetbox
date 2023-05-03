@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/dev4ndy/snippetbox/internal/models"
+	"github.com/justinas/alice"
 )
 
 type Config struct {
@@ -46,7 +47,7 @@ func (app *Application) NotFound(rw http.ResponseWriter) {
 	app.ClientError(rw, http.StatusNotFound)
 }
 
-func (app *Application) Routes() *http.ServeMux {
+func (app *Application) Routes() http.Handler {
 	nfs := NeuteredFileSystem{http.Dir(app.config.staticDir)}
 
 	mux := http.NewServeMux()
@@ -58,7 +59,9 @@ func (app *Application) Routes() *http.ServeMux {
 	mux.Handle("/", home)
 	mux.Handle("/snippet", snippet)
 
-	return mux
+	standard := alice.New(app.recoverPanic, app.logRequest, secureHeaders)
+
+	return standard.Then(mux)
 }
 
 func (app *Application) Render(rw http.ResponseWriter, status int, page string, data *templateData) {
