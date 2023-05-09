@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/dev4ndy/snippetbox/internal/models"
+	"github.com/julienschmidt/httprouter"
 	"github.com/justinas/alice"
 )
 
@@ -50,18 +51,22 @@ func (app *Application) NotFound(rw http.ResponseWriter) {
 func (app *Application) Routes() http.Handler {
 	nfs := NeuteredFileSystem{http.Dir(app.config.staticDir)}
 
-	mux := http.NewServeMux()
-	mux.Handle("/static/", http.StripPrefix("/static", http.FileServer(nfs)))
+	router := httprouter.New()
 
-	home := NewHome(app)
-	snippet := NewSnippet(app)
+	router.NotFound = http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
+		app.NotFound(rw)
+	})
 
-	mux.Handle("/", home)
-	mux.Handle("/snippet", snippet)
+	router.Handler(http.MethodGet, "/static/*filepath", http.StripPrefix("/static", http.FileServer(nfs)))
+
+	router.HandlerFunc(http.MethodGet, "/", app.HomeView)
+	router.HandlerFunc(http.MethodGet, "/snippet/view/:id", app.SnippetView)
+	router.HandlerFunc(http.MethodGet, "/snippet/create", app.SnippetCreateView)
+	router.HandlerFunc(http.MethodPost, "/snippet/create", app.SnippetCreate)
 
 	standard := alice.New(app.recoverPanic, app.logRequest, secureHeaders)
 
-	return standard.Then(mux)
+	return standard.Then(router)
 }
 
 func (app *Application) Render(rw http.ResponseWriter, status int, page string, data *templateData) {
