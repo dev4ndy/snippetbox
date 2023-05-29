@@ -6,7 +6,10 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
+	"github.com/alexedwards/scs/mysqlstore"
+	"github.com/alexedwards/scs/v2"
 	"github.com/dev4ndy/snippetbox/internal/models"
 	"github.com/go-playground/form/v4"
 	_ "github.com/go-sql-driver/mysql"
@@ -41,6 +44,10 @@ func main() {
 		errorLog.Fatal(err)
 	}
 
+	sessionManager := scs.New()
+	sessionManager.Store = mysqlstore.New(db)
+	sessionManager.Lifetime = 12 * time.Hour
+
 	formDecoder := form.NewDecoder()
 
 	// Logging
@@ -53,6 +60,7 @@ func main() {
 		&models.SnippetModel{DB: db},
 		templateCache,
 		formDecoder,
+		sessionManager,
 	)
 
 	defer db.Close()

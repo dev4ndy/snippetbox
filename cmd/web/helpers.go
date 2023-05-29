@@ -11,6 +11,7 @@ import (
 	"runtime/debug"
 	"time"
 
+	"github.com/alexedwards/scs/v2"
 	"github.com/dev4ndy/snippetbox/internal/models"
 	"github.com/go-playground/form/v4"
 	"github.com/julienschmidt/httprouter"
@@ -24,16 +25,17 @@ type Config struct {
 }
 
 type Application struct {
-	infoLog       *log.Logger
-	errorLog      *log.Logger
-	config        *Config
-	snippets      *models.SnippetModel
-	templateCache map[string]*template.Template
-	formDecoder   *form.Decoder
+	infoLog        *log.Logger
+	errorLog       *log.Logger
+	config         *Config
+	snippets       *models.SnippetModel
+	templateCache  map[string]*template.Template
+	formDecoder    *form.Decoder
+	sessionManager *scs.SessionManager
 }
 
-func NewApplication(infoLog *log.Logger, errorLog *log.Logger, config *Config, snippets *models.SnippetModel, templateCache map[string]*template.Template, formDecoder *form.Decoder) *Application {
-	return &Application{infoLog: infoLog, errorLog: errorLog, config: config, snippets: snippets, templateCache: templateCache, formDecoder: formDecoder}
+func NewApplication(infoLog *log.Logger, errorLog *log.Logger, config *Config, snippets *models.SnippetModel, templateCache map[string]*template.Template, formDecoder *form.Decoder, sessionManager *scs.SessionManager) *Application {
+	return &Application{infoLog: infoLog, errorLog: errorLog, config: config, snippets: snippets, templateCache: templateCache, formDecoder: formDecoder, sessionManager: sessionManager}
 }
 
 func (app *Application) ServerError(rw http.ResponseWriter, err error) {
@@ -62,10 +64,12 @@ func (app *Application) Routes() http.Handler {
 
 	router.Handler(http.MethodGet, "/static/*filepath", http.StripPrefix("/static", http.FileServer(nfs)))
 
-	router.HandlerFunc(http.MethodGet, "/", app.HomeView)
-	router.HandlerFunc(http.MethodGet, "/snippet/view/:id", app.SnippetView)
-	router.HandlerFunc(http.MethodGet, "/snippet/create", app.SnippetCreateView)
-	router.HandlerFunc(http.MethodPost, "/snippet/create", app.SnippetCreate)
+	dinamyc := alice.New(app.sessionManager.LoadAndSave)
+
+	router.Handler(http.MethodGet, "/", dinamyc.ThenFunc(app.HomeView))
+	router.Handler(http.MethodGet, "/snippet/view/:id", dinamyc.ThenFunc(app.SnippetView))
+	router.Handler(http.MethodGet, "/snippet/create", dinamyc.ThenFunc(app.SnippetCreateView))
+	router.Handler(http.MethodPost, "/snippet/create", dinamyc.ThenFunc(app.SnippetCreate))
 
 	standard := alice.New(app.recoverPanic, app.logRequest, secureHeaders)
 
@@ -95,9 +99,10 @@ func (app *Application) Render(rw http.ResponseWriter, status int, page string, 
 	buf.WriteTo(rw)
 }
 
-func (app *Application) NewTemplateData() *templateData {
+func (app *Application) NewTemplateData(r *http.Request) *templateData {
 	return &templateData{
 		CurrentYear: time.Now().Year(),
+		Flash:       app.sessionManager.GetString(r.Context(), "flash"),
 	}
 }
 

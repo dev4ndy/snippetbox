@@ -18,7 +18,7 @@ func (app *Application) HomeView(rw http.ResponseWriter, r *http.Request) {
 		app.ServerError(rw, err)
 	}
 
-	data := app.NewTemplateData()
+	data := app.NewTemplateData(r)
 	data.Snippets = snippets
 
 	app.Render(rw, http.StatusOK, "home.html", data)
@@ -43,7 +43,7 @@ func (app *Application) SnippetView(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data := app.NewTemplateData()
+	data := app.NewTemplateData(r)
 	data.Snippet = snippet
 
 	app.Render(rw, http.StatusOK, "view.html", data)
@@ -58,14 +58,9 @@ type SnippetCreateForm struct {
 }
 
 func (app *Application) SnippetCreate(rw http.ResponseWriter, r *http.Request) {
-	err := r.ParseForm()
-	if err != nil {
-		app.ClientError(rw, http.StatusBadRequest)
-	}
-
 	var form SnippetCreateForm
 
-	err = app.DecodePostForm(r, &form)
+	err := app.DecodePostForm(r, &form)
 
 	if err != nil {
 		app.ClientError(rw, http.StatusBadRequest)
@@ -78,7 +73,7 @@ func (app *Application) SnippetCreate(rw http.ResponseWriter, r *http.Request) {
 	form.CheckField(validator.AllowedValues(form.Expires, 1, 7, 365), "expires", "The expiration should be between 1 day and 1 year")
 
 	if form.Invalid() {
-		data := app.NewTemplateData()
+		data := app.NewTemplateData(r)
 		data.Form = form
 		app.Render(rw, http.StatusUnprocessableEntity, "create.html", data)
 		return
@@ -90,12 +85,14 @@ func (app *Application) SnippetCreate(rw http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	app.sessionManager.Put(r.Context(), "flash", "Snippet successfully created!")
+
 	http.Redirect(rw, r, fmt.Sprintf("/snippet/view/%d", id), http.StatusSeeOther)
 
 }
 
 func (app *Application) SnippetCreateView(rw http.ResponseWriter, r *http.Request) {
-	data := app.NewTemplateData()
+	data := app.NewTemplateData(r)
 	data.Form = SnippetCreateForm{
 		Expires: 365,
 	}
