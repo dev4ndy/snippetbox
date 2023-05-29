@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"github.com/dev4ndy/snippetbox/internal/models"
+	"github.com/go-playground/form/v4"
 	_ "github.com/go-sql-driver/mysql"
 )
 
@@ -40,6 +41,8 @@ func main() {
 		errorLog.Fatal(err)
 	}
 
+	formDecoder := form.NewDecoder()
+
 	// Logging
 	// To redirect the stdout and stderr to a file on-disk:
 	// `go run main.go >>/tmp/info.log 2>>/tmp/error.log`
@@ -49,6 +52,7 @@ func main() {
 		&cfg,
 		&models.SnippetModel{DB: db},
 		templateCache,
+		formDecoder,
 	)
 
 	defer db.Close()

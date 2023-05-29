@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"html/template"
 	"log"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"github.com/dev4ndy/snippetbox/internal/models"
+	"github.com/go-playground/form/v4"
 	"github.com/julienschmidt/httprouter"
 	"github.com/justinas/alice"
 )
@@ -27,10 +29,11 @@ type Application struct {
 	config        *Config
 	snippets      *models.SnippetModel
 	templateCache map[string]*template.Template
+	formDecoder   *form.Decoder
 }
 
-func NewApplication(infoLog *log.Logger, errorLog *log.Logger, config *Config, snippets *models.SnippetModel, templateCache map[string]*template.Template) *Application {
-	return &Application{infoLog: infoLog, errorLog: errorLog, config: config, snippets: snippets, templateCache: templateCache}
+func NewApplication(infoLog *log.Logger, errorLog *log.Logger, config *Config, snippets *models.SnippetModel, templateCache map[string]*template.Template, formDecoder *form.Decoder) *Application {
+	return &Application{infoLog: infoLog, errorLog: errorLog, config: config, snippets: snippets, templateCache: templateCache, formDecoder: formDecoder}
 }
 
 func (app *Application) ServerError(rw http.ResponseWriter, err error) {
@@ -96,6 +99,33 @@ func (app *Application) NewTemplateData() *templateData {
 	return &templateData{
 		CurrentYear: time.Now().Year(),
 	}
+}
+
+func (app *Application) DecodePostForm(r *http.Request, dst any) error {
+	err := r.ParseForm()
+	if err != nil {
+		return err
+	}
+
+	// Call Decode() on our decoder instance, passing the target destination as
+	// the first parameter.
+	err = app.formDecoder.Decode(dst, r.PostForm)
+	if err != nil {
+		// If we try to use an invalid target destination, the Decode() method
+		// will return an error with the type *form.InvalidDecoderError.We use
+		// errors.As() to check for this and raise a panic rather than returning
+		// the error.
+		var invalidDecoderError *form.InvalidDecoderError
+
+		if errors.As(err, &invalidDecoderError) {
+			panic(err)
+		}
+
+		// For all other errors, we return them as normal.
+		return err
+	}
+
+	return nil
 }
 
 type NeuteredFileSystem struct {

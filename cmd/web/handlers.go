@@ -51,10 +51,10 @@ func (app *Application) SnippetView(rw http.ResponseWriter, r *http.Request) {
 }
 
 type SnippetCreateForm struct {
-	Title   string
-	Content string
-	Expires int
-	validator.Validator
+	Title               string `form:"title"`
+	Content             string `form:"content"`
+	Expires             int    `form:"expires"`
+	validator.Validator `form:"-"`
 }
 
 func (app *Application) SnippetCreate(rw http.ResponseWriter, r *http.Request) {
@@ -63,17 +63,13 @@ func (app *Application) SnippetCreate(rw http.ResponseWriter, r *http.Request) {
 		app.ClientError(rw, http.StatusBadRequest)
 	}
 
-	expires, err := strconv.Atoi(r.PostForm.Get("expires"))
+	var form SnippetCreateForm
+
+	err = app.DecodePostForm(r, &form)
 
 	if err != nil {
 		app.ClientError(rw, http.StatusBadRequest)
 		return
-	}
-
-	form := SnippetCreateForm{
-		Title:   r.PostForm.Get("title"),
-		Content: r.PostForm.Get("content"),
-		Expires: expires,
 	}
 
 	form.CheckField(validator.Required(form.Title), "title", "This field is required")
